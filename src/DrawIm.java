@@ -1,151 +1,219 @@
 /**
  * Class DrawIm. Display an image on the panel.
- * TO DO
- * upload picture from data
- * limit input possibilities, only integers/doubles
+ *
+ * @// TODO: 22/11/2016
+ * upload picture from files - DONE
+ * limit file selection to image formats - DONE
+ * Limit file saving to images
+ * Problem with initial image
+ * limit r,k input possibilities, only integers/doubles
+ * Swing layout
  * set JFrame size
- * selectable name for saving
+ * selectable name for saving - DONE
+ * Look into action events
+ * restructure, less global variables
  **/
 
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
-import java.awt.image.ColorConvertOp;
 import java.io.File;
 import java.io.IOException;
 
 import javax.imageio.ImageIO;
-import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.JFileChooser;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class DrawIm extends JPanel {
     private static final long serialVersionUID = 1L;
-    private JLabel thres;
-    private JPanel p;
-    private JTextField varR;
-    private JTextField varK;
-    private BufferedImage gray;
+    private JLabel originalImgLabel;
+    private JLabel thresImgLabel;
+    private JPanel imagePanel;
+    private JPanel controlPanel;
+    private JTextField varRText;
+    private JTextField varKText;
+    private BufferedImage originalImg;
     private BufferedImage thresImg;
     private int countSaveImg = 0;
+    private boolean initialLoad = true;
+
+    /**
+     * main class creates JFrame and ads DrawIm
+     *
+     * @param args
+     */
+    public static void main(String[] args) {
+        JFrame frame = new JFrame("Local Adaptive Threshold Imaging");
+
+        frame.add(new DrawIm());
+        frame.setLayout(new GridLayout(2, 1, 5, 5));
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.pack();
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+    }
 
     /**
      * Constructor DrawIm
      * display images
-     * */
+     */
     private DrawIm() {
-        try {
-            // read an image from the disk
-            String file = "files/boats.png"; //CHANGE IMAGE
-            BufferedImage image = ImageIO.read(new File(file));
-            int width = image.getWidth();
-            int height = image.getHeight();
+        //new JPanel container for images and buttons
+        imagePanel = new JPanel();
+        controlPanel = new JPanel();
 
-            // create a gray scale image the same size from original colored image
-            gray = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-            ColorConvertOp op = new ColorConvertOp(image.getColorModel().getColorSpace(), gray.getColorModel().getColorSpace(), null);
-            op.filter(image, gray);
+        //add buttons
+        addButtons();
 
-            // new JPanel container for pictures and buttons
-            p = new JPanel();
-            p.setLayout(new BoxLayout(p, BoxLayout.PAGE_AXIS));
-            JPanel p2 = new JPanel();
-            p2.setLayout(new BoxLayout(p2, BoxLayout.PAGE_AXIS));
+        //add images
+        String filePath = "files/boats.png";
+        addImages(filePath);
 
-            // convert BufferedImage and threshold image to ImageIcons
-            JLabel img = new JLabel(new ImageIcon(image));
-            thres = new JLabel(new ImageIcon(gray));
+        //set initialLoad flag to false
+        initialLoad = false;
+    }
 
-            // add ImageIcons to DrawImage
-            p.add(img);
-            p.add(thres);
-            add(p);
+    private void addButtons() {
+        //add Buttons to DrawImage
+        JLabel varRLabel = new JLabel("Radius r:");
+        JLabel varKLabel = new JLabel("Variable k (0.2 - 0.5):");
+        varRText = new JTextField("1", 4);
+        varKText = new JTextField("0.2", 4);
+        JButton selectFile = new JButton("Select Image");
+        JButton calculate = new JButton("Calculate Threshold Image");
+        JButton save = new JButton("Save Threshold Image");
 
-            //add Buttons to DrawImage            
-            JLabel varRLabel = new JLabel("Radius r:");
-            JLabel varKLabel = new JLabel("Variable k, values 0.2 to 0.5:");
-            varR = new JTextField("1", 5);
-            varK = new JTextField("0.2", 5);
-            JButton calculate = new JButton("Calculate Threshold Picture");
-            JButton save = new JButton("Save Threshold Picture");
-
-            //add variable inputs to DrawImage
-            p2.add(varRLabel);
-            p2.add(varR);
-            p2.add(varKLabel);
-            p2.add(varK);
-            ControlPanel control = new ControlPanel();
-            calculate.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    if (control != null) {
-                        control.calculateThresholdImage(e);
-                    }
+        //add variable inputs to DrawImage
+        controlPanel.add(varRLabel);
+        controlPanel.add(varRText);
+        controlPanel.add(varKLabel);
+        controlPanel.add(varKText);
+        ControlPanel control = new ControlPanel();
+        selectFile.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                if (control != null) {
+                    control.selectFile(e);
                 }
-            });
-            save.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    if (control != null) {
-                        control.saveThresholdImage(e);
-                    }
+            }
+        });
+        calculate.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                if (control != null) {
+                    control.calculateThresholdImage(e);
                 }
-            });
-            p2.add(calculate);
-            p2.add(save);
-            add(p2);
+            }
+        });
+        save.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                if (control != null) {
+                    control.saveThresholdImage(e);
+                }
+            }
+        });
+        controlPanel.add(selectFile);
+        controlPanel.add(calculate);
+        controlPanel.add(save);
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        add(controlPanel);
     }
 
     /**
-     *  inner class Action
-     *  Action after button "calculate" is clicked
-     *  threshold calculation with inputs of r and k, saving image as jpg
+     * inner class Action
+     * Action after button "Select file..." is clicked
+     * Action after button "calculate" is clicked
+     * threshold calculation with inputs of r and k, saving image as jpg
+     * Action after button "Save" is clicked
      */
-    class ControlPanel {
+    private class ControlPanel {
+        public void selectFile(ActionEvent e) {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Open Image");
+            fileChooser.setCurrentDirectory(new java.io.File("."));
+            fileChooser.setAcceptAllFileFilterUsed(false);
+            FileNameExtensionFilter filter = new FileNameExtensionFilter("Image Files", "jpg", "png", "gif", "jpeg");
+            fileChooser.setFileFilter(filter);
 
-        public void calculateThresholdImage(ActionEvent e) {
-            //get variables from input in JPanel p for calculation
-            int r = Integer.parseInt(varR.getText().trim());
-            double k = Double.parseDouble(varK.getText().trim());
-
-            //apply threshold; update picture panel p with threshold image
-            LocalThreshold locThres = new LocalThreshold(gray, r, k);
-            thresImg = locThres.getImage();
-            p.remove(thres);
-            thres = new JLabel(new ImageIcon(thresImg));
-            p.add(thres);
-            p.revalidate();
-            p.repaint();
+            int result = fileChooser.showOpenDialog(imagePanel);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                String filePath = fileChooser.getSelectedFile().getAbsolutePath();
+                System.out.println("Selected image: " + filePath);
+                addImages(filePath);
+            } else {
+                System.out.println("No image selection.");
+            }
         }
 
-        public void saveThresholdImage(ActionEvent e){
-            try {
-                ImageIO.write(thresImg, "jpg", new File("bwImage_" + countSaveImg + ".jpg"));
-                countSaveImg++;
-            } catch (IOException e2) {
-                System.out.println("ERROR. Picture could not be saved");
-                e2.printStackTrace();
+        public void calculateThresholdImage(ActionEvent e) {
+            //get variables from input in JPanel pControls for calculation
+            int r = Integer.parseInt(varRText.getText().trim());
+            double k = Double.parseDouble(varKText.getText().trim());
+
+            //apply threshold, update JLabel pImg with threshold image
+            LocalThreshold locThres = new LocalThreshold(originalImg, r, k);
+            thresImg = locThres.getImage();
+            imagePanel.remove(thresImgLabel);
+            thresImgLabel.setIcon(new ImageIcon(thresImg));
+            imagePanel.add(thresImgLabel);
+            imagePanel.revalidate();
+            imagePanel.repaint();
+        }
+
+        public void saveThresholdImage(ActionEvent e) {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Save Threshold Image");
+            fileChooser.setCurrentDirectory(new java.io.File("."));
+            int result = fileChooser.showSaveDialog(imagePanel);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                String filePath = fileChooser.getSelectedFile().getAbsolutePath();
+                System.out.println("Saving image as: " + filePath + ".png.");
+                try {
+                    ImageIO.write(thresImg, "png", new File(filePath + ".png"));
+                } catch (IOException e2) {
+                    System.err.println("Problem saving image: " + filePath + ".png.");
+                    e2.printStackTrace();
+                }
+            } else {
+                System.out.println("No image selection.");
             }
         }
     }
 
     /**
-     * main class creates JFrame and ads DrawIm
-     * @param args
+     * method addImages
+     *
+     * @param filePath Image file path
      */
-    public static void main(String[] args) {
-        JFrame frame = new JFrame("Local Adaptive Threshold Image");
+    private void addImages(String filePath) {
+        try {
+            originalImg = ImageIO.read(new File(filePath));
+            thresImg = originalImg;
+            System.out.println("Accessing image: " + filePath + ".");
 
-        frame.add(new DrawIm());
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.pack();
-        frame.setVisible(true);
-        frame.setLocationRelativeTo(null);
+        } catch (IOException e) {
+            System.err.println("Problem accessing image: " + filePath + ".");
+            e.printStackTrace();
+        }
+
+        if (initialLoad) {
+            originalImgLabel = new JLabel(new ImageIcon(originalImg));
+            thresImgLabel = new JLabel(new ImageIcon(thresImg));
+        } else {
+            imagePanel.remove(originalImgLabel);
+            imagePanel.remove(thresImgLabel);
+            originalImgLabel.setIcon(new ImageIcon(originalImg));
+            thresImgLabel.setIcon(new ImageIcon(thresImg));
+        }
+        imagePanel.add(originalImgLabel);
+        imagePanel.add(thresImgLabel);
+        add(imagePanel);
+        imagePanel.revalidate();
+        imagePanel.repaint();
     }
 }

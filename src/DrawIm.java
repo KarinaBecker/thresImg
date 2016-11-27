@@ -11,7 +11,7 @@
  * set JFrame size, replace initial image
  * selectable name for saving - DONE
  * Look into action events
- * restructure, less global variables
+ * restructure - DONE
  **/
 
 import java.awt.*;
@@ -221,6 +221,7 @@ public class DrawIm extends JPanel {
             originalImg = ImageIO.read(new File(filePath));
             statusLabel.setText("Opened image " + filePath);
         } catch (IOException e) {
+            statusLabel.setBackground(Color.RED);
             statusLabel.setText("Problem accessing image " + filePath);
             System.err.println("Problem accessing image " + filePath);
             e.printStackTrace();
@@ -259,6 +260,7 @@ public class DrawIm extends JPanel {
             ImageIO.write(thresImg, "png", new File(fileName));
             statusLabel.setText("Image saved as " + fileName);
         } catch (IOException e2) {
+            statusLabel.setBackground(Color.RED);
             statusLabel.setText("Problem saving image " + fileName);
             System.err.println("Problem saving image " + fileName);
             e2.printStackTrace();
